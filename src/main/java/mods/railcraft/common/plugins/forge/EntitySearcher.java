@@ -89,6 +89,11 @@ public class EntitySearcher {
             return this;
         }
 
+        public SearchParameters<T> collidingWith(Entity entity) {
+            searchBox = entity.getEntityBoundingBox();
+            return this;
+        }
+
         public SearchParameters<T> around(Entity entity, float distance) {
             searchBox = entity.getEntityBoundingBox().expandXyz(distance);
             return this;
@@ -96,6 +101,11 @@ public class EntitySearcher {
 
         public SearchParameters<T> with(Predicate<Entity> filter) {
             this.filter = filter;
+            return this;
+        }
+
+        public SearchParameters<T> with(java.util.function.Predicate<Entity> filter) {
+            this.filter = filter::test;
             return this;
         }
 
