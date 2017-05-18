@@ -37,7 +37,8 @@ import javax.annotation.Nullable;
 public class EntityCartHopper extends CartBaseContainer implements IHopper {
 
     private boolean enabled = true;
-    private int transferCooldown = -1;
+    private BlockPos.PooledMutableBlockPos last = BlockPos.PooledMutableBlockPos.retain();
+    private int cooldown = 0;
 
     public EntityCartHopper(World world) {
         super(world);
@@ -113,22 +114,29 @@ public class EntityCartHopper extends CartBaseContainer implements IHopper {
         super.onUpdate();
 
         if (Game.isHost(worldObj) && !isDead && enabled) {
-            if (captureDroppedItems()) {
+            if (cooldown <= 0 && captureDroppedItems()) {
+                cooldown = 4;
                 this.markDirty();
             }
+            BlockPos.PooledMutableBlockPos now = BlockPos.PooledMutableBlockPos.retain(posX, posY, posZ);
+            if (now.equals(last)) {
+                cooldown--;
+            } else {
+                cooldown = 0;
+            }
+            last = now;
         }
     }
 
     private boolean captureDroppedItems() {
-        List<EntityItem> list = this.worldObj.getEntitiesWithinAABB(EntityItem.class, this.getEntityBoundingBox().expand(1D, 0.2D, 1D), EntitySelectors.IS_ALIVE);
+        List<EntityItem> list = this.worldObj.getEntitiesWithinAABB(EntityItem.class, this.getEntityBoundingBox().expand(.25D, 0D, .25D), EntitySelectors.IS_ALIVE);
         if (!list.isEmpty()) {
             TileEntityHopper.putDropInInventoryAllSlots(this, list.get(0));
             return true;
         }
 
-        if (TileEntityHopper.captureDroppedItems(this)) {
+        if (TileEntityHopper.captureDroppedItems(this))
             return true;
-        }
 
         return false;
     }
@@ -156,14 +164,14 @@ public class EntityCartHopper extends CartBaseContainer implements IHopper {
     @Override
     protected void writeEntityToNBT(NBTTagCompound compound) {
         super.writeEntityToNBT(compound);
-        compound.setInteger("TransferCooldown", this.transferCooldown);
+        compound.setInteger("TransferCooldown", this.cooldown);
         compound.setBoolean("Enabled", this.enabled);
     }
 
     @Override
     protected void readEntityFromNBT(NBTTagCompound compound) {
         super.readEntityFromNBT(compound);
-        this.transferCooldown = compound.getInteger("TransferCooldown");
+        this.cooldown = compound.getInteger("TransferCooldown");
         this.enabled = !compound.hasKey("Enabled") || compound.getBoolean("Enabled");
     }
 
